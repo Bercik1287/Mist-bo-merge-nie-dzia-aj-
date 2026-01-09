@@ -5,7 +5,7 @@ namespace mist.ViewModels
     public class GameSearchViewModel
     {
         public string SearchTerm { get; set; }
-        public string Genre { get; set; }
+        public List<int> TagIds { get; set; } = new List<int>();
         public string Developer { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }
@@ -16,7 +16,7 @@ namespace mist.ViewModels
     public class LibrarySearchViewModel
     {
         public string SearchTerm { get; set; }
-        public string Genre { get; set; }
-        public string SortBy { get; set; } = "recent"; // recent, name, genre
+        public List<int> TagIds { get; set; } = new List<int>();
+        public string SortBy { get; set; } = "recent"; // recent, name, tag
     }
 }

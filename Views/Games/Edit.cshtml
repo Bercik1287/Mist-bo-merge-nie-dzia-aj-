@@ -1,6 +1,8 @@
 @model mist.Models.Game
 @{
     ViewData["Title"] = "Edytuj grę: " + Model.Title;
+    var allTags = ViewBag.AllTags as List<mist.Models.Tag> ?? new List<mist.Models.Tag>();
+    var selectedTagIds = ViewBag.SelectedTagIds as List<int> ?? new List<int>();
 }
 
 <div class="container">
@@ -38,9 +40,42 @@
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label asp-for="Genre" class="form-label">Gatunek</label>
-                            <input asp-for="Genre" class="form-control" />
-                            <span asp-validation-for="Genre" class="text-danger"></span>
+                            <label class="form-label"><i class="bi bi-tags"></i> Tagi</label>
+                            
+                            <!-- Wyszukiwarka tagów -->
+                            <div class="input-group mb-2">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" id="tagSearch" class="form-control" placeholder="Szukaj tagów...">
+                            </div>
+                            
+                            <!-- Szybkie dodawanie tagu -->
+                            <div class="input-group mb-2">
+                                <input type="text" id="newTagName" class="form-control" placeholder="Nazwa nowego tagu...">
+                                <button type="button" id="quickAddTagBtn" class="btn btn-outline-success">
+                                    <i class="bi bi-plus-lg"></i> Dodaj
+                                </button>
+                            </div>
+                            <div id="quickAddFeedback" class="small mb-2"></div>
+                            
+                            <div class="border rounded p-3" id="tagsContainer" style="max-height: 200px; overflow-y: auto;">
+                                @if (allTags.Any())
+                                {
+                                    @foreach (var tag in allTags)
+                                    {
+                                        var isChecked = selectedTagIds.Contains(tag.Id);
+                                        <div class="form-check tag-item" data-tag-name="@tag.Name.ToLower()">
+                                            <input type="checkbox" name="selectedTagIds" value="@tag.Id" 
+                                                   class="form-check-input" id="tag_@tag.Id" @(isChecked ? "checked" : "")>
+                                            <label class="form-check-label" for="tag_@tag.Id">@tag.Name</label>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted mb-0 no-tags-message">Brak dostępnych tagów. Utwórz pierwszy tag powyżej.</p>
+                                }
+                            </div>
+                            <small class="text-muted">Wybierz tagi pasujące do gry</small>
                         </div>
                     </div>
                 </div>
@@ -76,6 +111,41 @@
                     <div id="imagePreview" class="mt-2" style="display: none;">
                         <p class="small text-muted">Nowy podgląd:</p>
                         <img id="previewImage" src="" alt="Podgląd" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><i class="bi bi-download"></i> Obecny plik do pobrania</label>
+                    <div class="mb-2">
+                        @if (!string.IsNullOrEmpty(Model.DownloadUrl))
+                        {
+                            <div class="alert alert-success">
+                                <i class="bi bi-file-earmark-check"></i> Plik do pobrania jest dostępny
+                            </div>
+                            <div class="form-check mt-2">
+                                <input type="checkbox" name="removeDownloadFile" class="form-check-input" id="removeDownloadFileCheck">
+                                <label class="form-check-label text-danger" for="removeDownloadFileCheck">
+                                    <i class="bi bi-trash"></i> Usuń obecny plik do pobrania
+                                </label>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> Nie przesłano jeszcze pliku do pobrania dla tej gry
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Nowy plik gry do pobrania (opcjonalnie)</label>
+                    <input type="file" name="downloadFile" class="form-control" accept=".zip,.rar,.7z,.exe,.msi" id="downloadFileInput" />
+                    <div class="form-text">
+                        Dozwolone formaty: ZIP, RAR, 7Z, EXE, MSI. Maksymalny rozmiar: 500MB
+                    </div>
+                    <div id="downloadFileInfo" class="mt-2" style="display: none;">
+                        <span class="badge bg-success"><i class="bi bi-file-earmark-check"></i> <span id="downloadFileName"></span></span>
                     </div>
                 </div>
 
@@ -142,32 +212,176 @@
     }
     
     <script>
-        // Podgląd obrazka przed przesłaniem
-        document.getElementById('imageFileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('previewImage').src = e.target.result;
-                    document.getElementById('imagePreview').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-                
-                // Jeśli wybrano nowy plik, odznacz opcję usunięcia
-                document.getElementById('removeImageCheck')?.checked = false;
-            } else {
-                document.getElementById('imagePreview').style.display = 'none';
+        document.addEventListener('DOMContentLoaded', function() {
+            // Podgląd obrazka przed przesłaniem
+            var imageInput = document.getElementById('imageFileInput');
+            if (imageInput) {
+                imageInput.addEventListener('change', function(e) {
+                    var file = e.target.files[0];
+                    if (file) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('previewImage').src = e.target.result;
+                            document.getElementById('imagePreview').style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                        
+                        // Jeśli wybrano nowy plik, odznacz opcję usunięcia
+                        var removeCheck = document.getElementById('removeImageCheck');
+                        if (removeCheck) removeCheck.checked = false;
+                    } else {
+                        document.getElementById('imagePreview').style.display = 'none';
+                    }
+                });
             }
-        });
 
-        // Jeśli zaznaczono usunięcie, wyczyść input pliku
-        document.getElementById('removeImageCheck')?.addEventListener('change', function() {
-            if (this.checked) {
-                document.getElementById('imageFileInput').value = '';
-                document.getElementById('imagePreview').style.display = 'none';
+            // Jeśli zaznaczono usunięcie, wyczyść input pliku
+            var removeImageCheck = document.getElementById('removeImageCheck');
+            if (removeImageCheck) {
+                removeImageCheck.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.getElementById('imageFileInput').value = '';
+                        document.getElementById('imagePreview').style.display = 'none';
+                    }
+                });
+            }
+
+            // Podgląd pliku do pobrania
+            var downloadInput = document.getElementById('downloadFileInput');
+            if (downloadInput) {
+                downloadInput.addEventListener('change', function(e) {
+                    var file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('downloadFileName').textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                        document.getElementById('downloadFileInfo').style.display = 'block';
+                        
+                        // Jeśli wybrano nowy plik, odznacz opcję usunięcia
+                        var removeCheck = document.getElementById('removeDownloadFileCheck');
+                        if (removeCheck) removeCheck.checked = false;
+                    } else {
+                        document.getElementById('downloadFileInfo').style.display = 'none';
+                    }
+                });
+            }
+
+            // Jeśli zaznaczono usunięcie pliku do pobrania, wyczyść input
+            var removeDownloadCheck = document.getElementById('removeDownloadFileCheck');
+            if (removeDownloadCheck) {
+                removeDownloadCheck.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.getElementById('downloadFileInput').value = '';
+                        document.getElementById('downloadFileInfo').style.display = 'none';
+                    }
+                });
+            }
+
+            // Wyszukiwarka tagów
+            var tagSearchInput = document.getElementById('tagSearch');
+            if (tagSearchInput) {
+                tagSearchInput.addEventListener('input', function(e) {
+                    var searchTerm = e.target.value.toLowerCase();
+                    var tagItems = document.querySelectorAll('.tag-item');
+                    
+                    for (var i = 0; i < tagItems.length; i++) {
+                        var item = tagItems[i];
+                        var tagName = item.getAttribute('data-tag-name');
+                        if (tagName && tagName.indexOf(searchTerm) !== -1) {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            // Szybkie dodawanie tagu
+            var quickAddBtn = document.getElementById('quickAddTagBtn');
+            var newTagInput = document.getElementById('newTagName');
+            
+            if (quickAddBtn) {
+                quickAddBtn.addEventListener('click', function() {
+                    addNewTag();
+                });
+            }
+            if (newTagInput) {
+                newTagInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addNewTag();
+                    }
+                });
+            }
+
+            function addNewTag() {
+                var input = document.getElementById('newTagName');
+                var feedback = document.getElementById('quickAddFeedback');
+                var tagName = input.value.trim();
+                
+                if (!tagName) {
+                    feedback.innerHTML = '<span class="text-warning">Wprowadź nazwę tagu.</span>';
+                    return;
+                }
+                
+                feedback.innerHTML = '<span class="text-info"><i class="bi bi-hourglass-split"></i> Dodawanie...</span>';
+                
+                fetch('/Tags/QuickCreate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: tagName })
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        if (response.status === 401 || response.status === 403) {
+                            throw new Error('Brak uprawnień - zaloguj się jako Admin');
+                        }
+                        throw new Error('Błąd serwera: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success) {
+                        // Dodaj nowy tag do listy
+                        var container = document.getElementById('tagsContainer');
+                        var noTagsMessage = container.querySelector('.no-tags-message');
+                        if (noTagsMessage) {
+                            noTagsMessage.remove();
+                        }
+                        
+                        var newTagDiv = document.createElement('div');
+                        newTagDiv.className = 'form-check tag-item';
+                        newTagDiv.setAttribute('data-tag-name', data.name.toLowerCase());
+                        newTagDiv.innerHTML = '<input type="checkbox" name="selectedTagIds" value="' + data.id + '" class="form-check-input" id="tag_' + data.id + '" checked><label class="form-check-label" for="tag_' + data.id + '">' + data.name + '</label>';
+                        container.appendChild(newTagDiv);
+                        
+                        input.value = '';
+                        feedback.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Tag "' + data.name + '" został dodany i zaznaczony!</span>';
+                        
+                        // Schowaj feedback po 3 sekundach
+                        setTimeout(function() { feedback.innerHTML = ''; }, 3000);
+                    } else {
+                        if (data.existingId) {
+                            // Tag już istnieje - zaznacz go
+                            var existingCheckbox = document.getElementById('tag_' + data.existingId);
+                            if (existingCheckbox) {
+                                existingCheckbox.checked = true;
+                                feedback.innerHTML = '<span class="text-info"><i class="bi bi-info-circle"></i> Tag już istnieje - został zaznaczony.</span>';
+                            } else {
+                                feedback.innerHTML = '<span class="text-warning">' + data.message + '</span>';
+                            }
+                        } else {
+                            feedback.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> ' + data.message + '</span>';
+                        }
+                        setTimeout(function() { feedback.innerHTML = ''; }, 3000);
+                    }
+                    input.value = '';
+                })
+                .catch(function(error) {
+                    feedback.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Wystąpił błąd podczas dodawania tagu.</span>';
+                    console.error('Error:', error);
+                });
             }
         });
     </script>
 }
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">

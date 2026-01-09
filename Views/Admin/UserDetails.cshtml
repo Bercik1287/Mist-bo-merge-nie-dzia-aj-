@@ -11,14 +11,6 @@
         </a>
     </div>
 
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="card">
@@ -112,7 +104,7 @@
                                             <td>
                                                 <strong>@purchase.Game.Title</strong>
                                                 <br>
-                                                <small class="text-muted">@purchase.Game.Genre</small>
+                                                <small class="text-muted">@purchase.Game.TagsDisplay</small>
                                             </td>
                                             <td>
                                                 <strong class="text-success">@purchase.PricePaid.ToString("C")</strong>

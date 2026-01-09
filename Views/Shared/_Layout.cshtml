@@ -79,20 +79,6 @@
                     <ul class="navbar-nav">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            
-                            <li class="nav-item">
-                                <a class="nav-link position-relative" asp-controller="Cart" asp-action="Index">
-                                    <i class="bi bi-cart3"></i> Koszyk
-                                    @{
-                                        var cartCountStr = await Component.InvokeAsync("CartCount");
-                                        var cartCount = int.TryParse(cartCountStr.ToString(), out int count) ? count : 0;
-                                    }
-                                </a>
-                            </li>
-                            
-                            
-                            <!-- Zamień sekcję dropdown menu użytkownika w _Layout.cshtml na: -->
-
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" 
                                    data-bs-toggle="dropdown" aria-expanded="false">
@@ -144,6 +130,18 @@
                                     </li>
                                 </ul>
                             </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Wishlist" asp-action="Index" title="Moja Wishlist">
+                                    <i class="bi bi-heart"></i> Wishlist
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link position-relative" asp-controller="Cart" asp-action="Index">
+                                    <i class="bi bi-cart3"></i> Koszyk
+                                </a>
+                            </li>
                         }
                         else
                         {
@@ -155,25 +153,6 @@
                             <li class="nav-item">
                                 <a class="btn btn-outline-light btn-sm ms-2" asp-controller="Account" asp-action="Register">
                                     Rejestracja
-                                </a>
-                            </li>
-                        }
-
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Wishlist" asp-action="Index" title="Moja Wishlist">
-                                    <i class="bi bi-heart"></i> Wishlist
-                                </a>
-                            </li>
-
-                            <li class="nav-item">
-                                <a class="nav-link position-relative" asp-controller="Cart" asp-action="Index">
-                                    <i class="bi bi-cart3"></i> Koszyk
-                                    @{
-                                        var cartCountStr = await Component.InvokeAsync("CartCount");
-                                        var cartCount = int.TryParse(cartCountStr.ToString(), out int count) ? count : 0;
-                                    }
                                 </a>
                             </li>
                         }
@@ -196,6 +175,13 @@
         {
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Keys.Any(k => string.IsNullOrEmpty(k)))
+        {
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         }

@@ -2,8 +2,9 @@
 @{
     ViewData["Title"] = "Katalog Gier";
     var searchModel = ViewBag.SearchModel as mist.ViewModels.GameSearchViewModel;
-    var genres = ViewBag.Genres as List<string>;
+    var tags = ViewBag.Tags as List<mist.Models.Tag> ?? new List<mist.Models.Tag>();
     var developers = ViewBag.Developers as List<string>;
+    var selectedTagIds = searchModel?.TagIds ?? new List<int>();
 }
 
 <div class="container">
@@ -11,19 +12,16 @@
         <h1><i class="bi bi-shop"></i> Katalog Gier</h1>
         @if (User.IsInRole("Admin"))
         {
-            <a asp-action="Create" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Dodaj nową grę
-            </a>
+            <div>
+                <a asp-controller="Tags" asp-action="Index" class="btn btn-outline-info me-2">
+                    <i class="bi bi-tags"></i> Zarządzaj tagami
+                </a>
+                <a asp-action="Create" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Dodaj nową grę
+                </a>
+            </div>
         }
     </div>
-
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
 
     <!-- Wyszukiwarka i filtry -->
     <div class="card mb-4">
@@ -62,18 +60,30 @@
                             </select>
                         </div>
 
-                        <!-- Gatunek -->
+                        <!-- Tagi (wielokrotny wybór) -->
                         <div class="col-md-4">
                             <label class="form-label">
-                                <i class="bi bi-tag"></i> Gatunek
+                                <i class="bi bi-tags"></i> Tagi
                             </label>
-                            <select name="Genre" class="form-select">
-                                <option value="">Wszystkie</option>
-                                @foreach (var genre in genres ?? new List<string>())
+                            <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                                @if (tags.Any())
                                 {
-                                    <option value="@genre" selected="@(searchModel?.Genre == genre)">@genre</option>
+                                    @foreach (var tag in tags)
+                                    {
+                                        var isChecked = selectedTagIds.Contains(tag.Id);
+                                        <div class="form-check">
+                                            <input type="checkbox" name="TagIds" value="@tag.Id" 
+                                                   class="form-check-input" id="filter_tag_@tag.Id" @(isChecked ? "checked" : "")>
+                                            <label class="form-check-label" for="filter_tag_@tag.Id">@tag.Name</label>
+                                        </div>
+                                    }
                                 }
-                            </select>
+                                else
+                                {
+                                    <span class="text-muted small">Brak tagów</span>
+                                }
+                            </div>
+                            <small class="text-muted">Zaznacz jeden lub więcej</small>
                         </div>
 
                         <!-- Deweloper -->
@@ -193,7 +203,19 @@
                                             <span class="h5 text-primary">@currentPrice.ToString("C")</span>
                                         }
                                     </div>
-                                    <span class="badge bg-secondary">@game.Genre</span>
+                                    <div>
+                                        @if (game.GameTags?.Any() == true)
+                                        {
+                                            @foreach (var gameTag in game.GameTags.Take(2))
+                                            {
+                                                <span class="badge bg-secondary me-1">@gameTag.Tag?.Name</span>
+                                            }
+                                            @if (game.GameTags.Count > 2)
+                                            {
+                                                <span class="badge bg-light text-dark">+@(game.GameTags.Count - 2)</span>
+                                            }
+                                        }
+                                    </div>
                                 </div>
 
                                 @if (hasPromotion)

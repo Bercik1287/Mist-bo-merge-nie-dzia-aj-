@@ -38,7 +38,7 @@
                             <tr>
                                 <th>Data zakupu</th>
                                 <th>Gra</th>
-                                <th>Gatunek</th>
+                                <th>Tagi</th>
                                 <th>Cena zapłacona</th>
                                 <th>Akcje</th>
                             </tr>
@@ -57,7 +57,17 @@
                                         <small class="text-muted">@purchase.Game.Developer</small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-secondary">@purchase.Game.Genre</span>
+                                        @if (purchase.Game.GameTags?.Any() == true)
+                                        {
+                                            @foreach (var gameTag in purchase.Game.GameTags.Take(2))
+                                            {
+                                                <span class="badge bg-secondary me-1">@gameTag.Tag?.Name</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Brak tagów</span>
+                                        }
                                     </td>
                                     <td>
                                         <strong class="text-success">@purchase.PricePaid.ToString("C")</strong>

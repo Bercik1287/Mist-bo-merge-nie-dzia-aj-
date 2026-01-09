@@ -101,8 +101,7 @@ namespace mist.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Genre")
-                        .IsRequired()
+                    b.Property<string>("DownloadUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ImageUrl")
@@ -138,7 +137,6 @@ namespace mist.Migrations
                             CreatedAt = new DateTime(2025, 10, 31, 23, 6, 0, 300, DateTimeKind.Utc),
                             Description = "Futurystyczna gra RPG w otwartym świecie Day City",
                             Developer = "VHS Projekt Green",
-                            Genre = "RPG",
                             ImageUrl = "/images/cyberpunk.jpg",
                             IsActive = true,
                             Price = 199.99m,
@@ -152,7 +150,6 @@ namespace mist.Migrations
                             CreatedAt = new DateTime(2025, 10, 31, 23, 6, 0, 306, DateTimeKind.Utc),
                             Description = "Epicka przygoda Gerwazego z Rumunii",
                             Developer = "VHS Projekt Green",
-                            Genre = "RPG",
                             ImageUrl = "/images/witcher3.jpg",
                             IsActive = true,
                             Price = 129.99m,
@@ -166,13 +163,74 @@ namespace mist.Migrations
                             CreatedAt = new DateTime(2025, 10, 31, 23, 6, 0, 312, DateTimeKind.Utc),
                             Description = "Zejdź w głąb królestwa Hallownest",
                             Developer = "Team Mirabelle",
-                            Genre = "Metroidvania",
                             ImageUrl = "/images/hollowknight.jpg",
                             IsActive = true,
                             Price = 19.99m,
                             Publisher = "Team Mirabelle",
                             ReleaseDate = new DateTime(2017, 2, 24, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Title = "Holluw Knuht"
+                        });
+                });
+
+            modelBuilder.Entity("mist.Models.GameTag", b =>
+                {
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("GameId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("GameTags");
+
+                    b.HasData(
+                        new
+                        {
+                            GameId = 1,
+                            TagId = 1
+                        },
+                        new
+                        {
+                            GameId = 1,
+                            TagId = 2
+                        },
+                        new
+                        {
+                            GameId = 1,
+                            TagId = 5
+                        },
+                        new
+                        {
+                            GameId = 2,
+                            TagId = 1
+                        },
+                        new
+                        {
+                            GameId = 2,
+                            TagId = 3
+                        },
+                        new
+                        {
+                            GameId = 2,
+                            TagId = 5
+                        },
+                        new
+                        {
+                            GameId = 3,
+                            TagId = 4
+                        },
+                        new
+                        {
+                            GameId = 3,
+                            TagId = 2
+                        },
+                        new
+                        {
+                            GameId = 3,
+                            TagId = 6
                         });
                 });
 
@@ -291,6 +349,72 @@ namespace mist.Migrations
                     b.ToTable("Reviews");
                 });
 
+            modelBuilder.Entity("mist.Models.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Description = "Gry fabularne",
+                            Name = "RPG"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "Gry akcji",
+                            Name = "Action"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Description = "Gry przygodowe",
+                            Name = "Adventure"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Description = "Gry w stylu Metroidvania",
+                            Name = "Metroidvania"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Description = "Gry z otwartym światem",
+                            Name = "Open World"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Description = "Gry niezależnych twórców",
+                            Name = "Indie"
+                        });
+                });
+
             modelBuilder.Entity("mist.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -398,6 +522,25 @@ namespace mist.Migrations
                     b.Navigation("Game");
                 });
 
+            modelBuilder.Entity("mist.Models.GameTag", b =>
+                {
+                    b.HasOne("mist.Models.Game", "Game")
+                        .WithMany("GameTags")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("mist.Models.Tag", "Tag")
+                        .WithMany("GameTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("mist.Models.Promotion", b =>
                 {
                     b.HasOne("mist.Models.Game", "Game")
@@ -447,6 +590,13 @@ namespace mist.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("mist.Models.Tag", b =>
+                {
+                    b.HasOne("mist.Models.Game", null)
+                        .WithMany("Tags")
+                        .HasForeignKey("GameId");
+                });
+
             modelBuilder.Entity("mist.Models.WishlistItem", b =>
                 {
                     b.HasOne("mist.Models.Game", "Game")
@@ -473,13 +623,22 @@ namespace mist.Migrations
 
             modelBuilder.Entity("mist.Models.Game", b =>
                 {
+                    b.Navigation("GameTags");
+
                     b.Navigation("Promotions");
 
                     b.Navigation("Purchases");
 
                     b.Navigation("Reviews");
 
+                    b.Navigation("Tags");
+
                     b.Navigation("WishlistItems");
+                });
+
+            modelBuilder.Entity("mist.Models.Tag", b =>
+                {
+                    b.Navigation("GameTags");
                 });
 
             modelBuilder.Entity("mist.Models.User", b =>

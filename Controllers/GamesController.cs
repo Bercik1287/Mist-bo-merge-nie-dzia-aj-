@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using mist.Data;
 using mist.Models;
 using mist.ViewModels;
+using mist.Services;
 using Microsoft.AspNetCore.Authorization;
 
 namespace mist.Controllers
@@ -10,10 +11,12 @@ namespace mist.Controllers
     public class GamesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IFileUploadService _fileUploadService;
 
-        public GamesController(ApplicationDbContext context)
+        public GamesController(ApplicationDbContext context, IFileUploadService fileUploadService)
         {
             _context = context;
+            _fileUploadService = fileUploadService;
         }
 
         // GET: Games
@@ -21,6 +24,8 @@ namespace mist.Controllers
         {
             var query = _context.Games
                 .Include(g => g.Promotions)
+                .Include(g => g.GameTags)
+                    .ThenInclude(gt => gt.Tag)
                 .Where(g => g.IsActive)
                 .AsQueryable();
 
@@ -36,10 +41,13 @@ namespace mist.Controllers
                 );
             }
 
-            // Filtrowanie po gatunku
-            if (!string.IsNullOrWhiteSpace(searchModel.Genre))
+            // Filtrowanie po tagach (wiele tagów naraz - gra musi mieć WSZYSTKIE wybrane tagi)
+            if (searchModel.TagIds != null && searchModel.TagIds.Any())
             {
-                query = query.Where(g => g.Genre == searchModel.Genre);
+                foreach (var tagId in searchModel.TagIds)
+                {
+                    query = query.Where(g => g.GameTags.Any(gt => gt.TagId == tagId));
+                }
             }
 
             // Filtrowanie po deweloperze
@@ -89,12 +97,9 @@ namespace mist.Controllers
             };
 
 
-            // Pobierz dostępne gatunki i deweloperów dla filtrów
-            ViewBag.Genres = await _context.Games
-                .Where(g => g.IsActive)
-                .Select(g => g.Genre)
-                .Distinct()
-                .OrderBy(g => g)
+            // Pobierz dostępne tagi i deweloperów dla filtrów
+            ViewBag.Tags = await _context.Tags
+                .OrderBy(t => t.Name)
                 .ToListAsync();
 
             ViewBag.Developers = await _context.Games
@@ -119,6 +124,8 @@ namespace mist.Controllers
 
             var game = await _context.Games
                 .Include(g => g.Promotions)
+                .Include(g => g.GameTags)
+                    .ThenInclude(gt => gt.Tag)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (game == null)
@@ -131,8 +138,9 @@ namespace mist.Controllers
 
         // GET: Games/Create
         [Authorize(Roles = "Admin")]
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
+            ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
             return View();
         }
 
@@ -140,22 +148,73 @@ namespace mist.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create(Game game)
+        public async Task<IActionResult> Create(Game game, int[] selectedTagIds, IFormFile? imageFile, IFormFile? downloadFile)
         {
             ModelState.Remove("CreatedAt");
             ModelState.Remove("Owners");
             ModelState.Remove("Purchases");
             ModelState.Remove("Promotions");
+            ModelState.Remove("GameTags");
+            ModelState.Remove("Tags");
+            ModelState.Remove("ImageUrl");
+            ModelState.Remove("DownloadUrl");
+            ModelState.Remove("WishlistItems");
+            ModelState.Remove("Reviews");
             
             if (ModelState.IsValid)
             {
                 game.CreatedAt = DateTime.UtcNow;
+                
+                // Upload image file
+                if (imageFile != null && imageFile.Length > 0)
+                {
+                    var imageResult = await _fileUploadService.UploadGameImageAsync(imageFile);
+                    if (imageResult.Success)
+                    {
+                        game.ImageUrl = imageResult.FilePath;
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", imageResult.Message);
+                        ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
+                        return View(game);
+                    }
+                }
+                
+                // Upload download file
+                if (downloadFile != null && downloadFile.Length > 0)
+                {
+                    var downloadResult = await _fileUploadService.UploadGameFileAsync(downloadFile);
+                    if (downloadResult.Success)
+                    {
+                        game.DownloadUrl = downloadResult.FilePath;
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", downloadResult.Message);
+                        ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
+                        return View(game);
+                    }
+                }
+                
                 _context.Add(game);
                 await _context.SaveChangesAsync();
+
+                // Dodaj wybrane tagi
+                if (selectedTagIds != null && selectedTagIds.Length > 0)
+                {
+                    foreach (var tagId in selectedTagIds)
+                    {
+                        _context.GameTags.Add(new GameTag { GameId = game.Id, TagId = tagId });
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 TempData["SuccessMessage"] = "Gra została dodana pomyślnie!";
                 return RedirectToAction(nameof(Index));
             }
             
+            ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
             return View(game);
         }
 
@@ -168,11 +227,16 @@ namespace mist.Controllers
                 return NotFound();
             }
 
-            var game = await _context.Games.FindAsync(id);
+            var game = await _context.Games
+                .Include(g => g.GameTags)
+                .FirstOrDefaultAsync(g => g.Id == id);
             if (game == null)
             {
                 return NotFound();
             }
+            
+            ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
+            ViewBag.SelectedTagIds = game.GameTags.Select(gt => gt.TagId).ToList();
             return View(game);
         }
 
@@ -180,7 +244,7 @@ namespace mist.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Edit(int id, Game game)
+        public async Task<IActionResult> Edit(int id, Game game, int[] selectedTagIds, IFormFile? imageFile, IFormFile? downloadFile, bool removeDownloadFile = false)
         {
             if (id != game.Id)
             {
@@ -190,12 +254,98 @@ namespace mist.Controllers
             ModelState.Remove("Owners");
             ModelState.Remove("Purchases");
             ModelState.Remove("Promotions");
+            ModelState.Remove("GameTags");
+            ModelState.Remove("Tags");
+            ModelState.Remove("ImageUrl");
+            ModelState.Remove("DownloadUrl");
+            ModelState.Remove("WishlistItems");
+            ModelState.Remove("Reviews");
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    _context.Update(game);
+                    // Pobierz istniejącą grę z bazy
+                    var existingGame = await _context.Games.FindAsync(id);
+                    if (existingGame == null)
+                    {
+                        return NotFound();
+                    }
+
+                    // Zaktualizuj właściwości
+                    existingGame.Title = game.Title;
+                    existingGame.Description = game.Description;
+                    existingGame.Price = game.Price;
+                    existingGame.Developer = game.Developer;
+                    existingGame.Publisher = game.Publisher;
+                    existingGame.ReleaseDate = game.ReleaseDate;
+                    existingGame.IsActive = game.IsActive;
+                    
+                    // Obsługa obrazu
+                    if (imageFile != null && imageFile.Length > 0)
+                    {
+                        var imageResult = await _fileUploadService.UploadGameImageAsync(imageFile);
+                        if (imageResult.Success)
+                        {
+                            // Usuń stary obraz jeśli istnieje
+                            if (!string.IsNullOrEmpty(existingGame.ImageUrl))
+                            {
+                                await _fileUploadService.DeleteGameImageAsync(existingGame.ImageUrl);
+                            }
+                            existingGame.ImageUrl = imageResult.FilePath;
+                        }
+                        else
+                        {
+                            ModelState.AddModelError("", imageResult.Message);
+                            ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
+                            ViewBag.SelectedTagIds = selectedTagIds?.ToList() ?? new List<int>();
+                            return View(game);
+                        }
+                    }
+                    
+                    // Obsługa pliku do pobrania
+                    if (removeDownloadFile)
+                    {
+                        if (!string.IsNullOrEmpty(existingGame.DownloadUrl))
+                        {
+                            await _fileUploadService.DeleteGameFileAsync(existingGame.DownloadUrl);
+                        }
+                        existingGame.DownloadUrl = null;
+                    }
+                    else if (downloadFile != null && downloadFile.Length > 0)
+                    {
+                        var downloadResult = await _fileUploadService.UploadGameFileAsync(downloadFile);
+                        if (downloadResult.Success)
+                        {
+                            // Usuń stary plik jeśli istnieje
+                            if (!string.IsNullOrEmpty(existingGame.DownloadUrl))
+                            {
+                                await _fileUploadService.DeleteGameFileAsync(existingGame.DownloadUrl);
+                            }
+                            existingGame.DownloadUrl = downloadResult.FilePath;
+                        }
+                        else
+                        {
+                            ModelState.AddModelError("", downloadResult.Message);
+                            ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
+                            ViewBag.SelectedTagIds = selectedTagIds?.ToList() ?? new List<int>();
+                            return View(game);
+                        }
+                    }
+                    
+                    // Aktualizuj tagi - usuń stare i dodaj nowe używając raw SQL
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM GameTags WHERE GameId = {0}", id);
+                    
+                    if (selectedTagIds != null && selectedTagIds.Length > 0)
+                    {
+                        foreach (var tagId in selectedTagIds)
+                        {
+                            await _context.Database.ExecuteSqlRawAsync(
+                                "INSERT INTO GameTags (GameId, TagId) VALUES ({0}, {1})", id, tagId);
+                        }
+                    }
+                    
                     await _context.SaveChangesAsync();
                     TempData["SuccessMessage"] = "Gra została zaktualizowana!";
                 }
@@ -209,6 +359,9 @@ namespace mist.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
+            
+            ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
+            ViewBag.SelectedTagIds = selectedTagIds?.ToList() ?? new List<int>();
             return View(game);
         }
 
@@ -222,6 +375,8 @@ namespace mist.Controllers
             }
 
             var game = await _context.Games
+                .Include(g => g.GameTags)
+                    .ThenInclude(gt => gt.Tag)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (game == null)

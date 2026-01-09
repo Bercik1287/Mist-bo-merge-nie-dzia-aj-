@@ -19,10 +19,10 @@ namespace mist.Models
         public decimal Price { get; set; }
 
         public string ImageUrl { get; set; }
+        public string? DownloadUrl { get; set; }
         public string Developer { get; set; }
         public string Publisher { get; set; }
         public DateTime ReleaseDate { get; set; }
-        public string Genre { get; set; }
         public bool IsActive { get; set; } = true;
         
         [System.ComponentModel.DataAnnotations.Schema.DatabaseGenerated(System.ComponentModel.DataAnnotations.Schema.DatabaseGeneratedOption.Identity)]
@@ -34,6 +34,17 @@ namespace mist.Models
         public virtual ICollection<Promotion> Promotions { get; set; }
         public virtual ICollection<WishlistItem> WishlistItems { get; set; }
         public virtual ICollection<Review> Reviews { get; set; }
+        
+        // Relacja wiele-do-wielu z Tag
+        public virtual ICollection<GameTag> GameTags { get; set; } = new List<GameTag>();
+
+        // Pomocnicza właściwość do pobierania tagów
+        public IEnumerable<Tag> Tags => GameTags?.Select(gt => gt.Tag) ?? Enumerable.Empty<Tag>();
+
+        // Pomocnicza właściwość do wyświetlania tagów jako string
+        public string TagsDisplay => GameTags?.Any() == true 
+            ? string.Join(", ", GameTags.Select(gt => gt.Tag?.Name).Where(n => n != null)) 
+            : "Brak tagów";
 
         // Obliczenia - cena z uwzględnieniem aktywnej promocji
         public decimal GetCurrentPrice()

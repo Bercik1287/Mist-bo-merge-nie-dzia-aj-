@@ -67,6 +67,10 @@ namespace mist.Services
         {
             return await _context.WishlistItems
                 .Include(w => w.Game)
+                    .ThenInclude(g => g.GameTags)
+                        .ThenInclude(gt => gt.Tag)
+                .Include(w => w.Game)
+                    .ThenInclude(g => g.Promotions)
                 .Where(w => w.UserId == userId)
                 .OrderByDescending(w => w.AddedAt)
                 .ToListAsync();

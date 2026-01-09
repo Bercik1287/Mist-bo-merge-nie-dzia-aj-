@@ -21,22 +21,6 @@
 }
 
 <div class="container">
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
     <div class="row">
         <div class="col-md-6">
             <div class="position-relative">
@@ -69,7 +53,16 @@
         </div>
         <div class="col-md-6">
             <h1>@Model.Title</h1>
-            <p class="text-muted">@Model.Genre • @Model.ReleaseDate.ToString("dd.MM.yyyy")</p>
+            <p class="text-muted">
+                @if (Model.GameTags?.Any() == true)
+                {
+                    @foreach (var gameTag in Model.GameTags)
+                    {
+                        <span class="badge bg-secondary me-1">@gameTag.Tag?.Name</span>
+                    }
+                }
+                • @Model.ReleaseDate.ToString("dd.MM.yyyy")
+            </p>
             
             @if (hasPromotion)
             {

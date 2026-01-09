@@ -84,6 +84,8 @@ namespace mist.Services
         {
             return await _context.Purchases
                 .Include(p => p.Game)
+                    .ThenInclude(g => g.GameTags)
+                        .ThenInclude(gt => gt.Tag)
                 .Where(p => p.UserId == userId)
                 .OrderByDescending(p => p.PurchaseDate)
                 .ToListAsync();
@@ -93,6 +95,8 @@ namespace mist.Services
         {
             return await _context.Purchases
                 .Include(p => p.Game)
+                    .ThenInclude(g => g.GameTags)
+                        .ThenInclude(gt => gt.Tag)
                 .Where(p => p.UserId == userId)
                 .Select(p => p.Game)
                 .OrderByDescending(g => g.CreatedAt)
