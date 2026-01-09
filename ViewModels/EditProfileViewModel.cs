@@ -16,7 +16,7 @@ namespace mist.ViewModels
         public string Email { get; set; }
 
         [StringLength(100, MinimumLength = 8, ErrorMessage = "Hasło musi mieć min. 8 znaków")]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$", 
             ErrorMessage = "Hasło musi zawierać wielką literę, małą literę, cyfrę i znak specjalny")]
         [DataType(DataType.Password)]
         public string? NewPassword { get; set; }

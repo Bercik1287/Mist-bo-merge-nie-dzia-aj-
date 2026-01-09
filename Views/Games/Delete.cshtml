@@ -16,7 +16,20 @@
             <h3 class="card-title">@Model.Title</h3>
             <p class="card-text"><strong>Developer:</strong> @Model.Developer</p>
             <p class="card-text"><strong>Wydawca:</strong> @Model.Publisher</p>
-            <p class="card-text"><strong>Gatunek:</strong> @Model.Genre</p>
+            <p class="card-text">
+                <strong>Tagi:</strong> 
+                @if (Model.GameTags?.Any() == true)
+                {
+                    @foreach (var gameTag in Model.GameTags)
+                    {
+                        <span class="badge bg-secondary me-1">@gameTag.Tag?.Name</span>
+                    }
+                }
+                else
+                {
+                    <span class="text-muted">Brak tagów</span>
+                }
+            </p>
             <p class="card-text"><strong>Cena:</strong> @Model.Price.ToString("C")</p>
             <p class="card-text"><strong>Data wydania:</strong> @Model.ReleaseDate.ToString("dd.MM.yyyy")</p>
         </div>

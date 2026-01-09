@@ -39,8 +39,29 @@ namespace mist.Controllers
                 return View(model);
             }
 
-            TempData["SuccessMessage"] = "Rejestracja zakończona sukcesem! Możesz się teraz zalogować.";
-            return RedirectToAction(nameof(Login));
+            // Automatyczne logowanie po rejestracji
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, result.User.Id.ToString()),
+                new Claim(ClaimTypes.Name, result.User.Username),
+                new Claim(ClaimTypes.Email, result.User.Email),
+                new Claim(ClaimTypes.Role, result.User.Role)
+            };
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var authProperties = new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            };
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties);
+
+            TempData["SuccessMessage"] = result.Message;
+            return RedirectToAction("Index", "Home");
         }
 
         [HttpGet]

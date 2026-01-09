@@ -140,7 +140,9 @@ namespace mist.Controllers
             var userId = GetCurrentUserId();
             var user = await _context.Users
                 .Include(u => u.Purchases)
-                .ThenInclude(p => p.Game)
+                    .ThenInclude(p => p.Game)
+                        .ThenInclude(g => g.GameTags)
+                            .ThenInclude(gt => gt.Tag)
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)

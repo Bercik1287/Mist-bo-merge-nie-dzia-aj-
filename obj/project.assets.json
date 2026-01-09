@@ -4221,11 +4221,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/shirokitsu/siszarp/mist/mist.csproj",
+      "projectUniqueName": "/home/shirokitsu/Mist-bo-merge-nie-dzia-aj-/mist.csproj",
       "projectName": "mist",
-      "projectPath": "/home/shirokitsu/siszarp/mist/mist.csproj",
+      "projectPath": "/home/shirokitsu/Mist-bo-merge-nie-dzia-aj-/mist.csproj",
       "packagesPath": "/home/shirokitsu/.nuget/packages/",
-      "outputPath": "/home/shirokitsu/siszarp/mist/obj/",
+      "outputPath": "/home/shirokitsu/Mist-bo-merge-nie-dzia-aj-/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/home/shirokitsu/.nuget/NuGet/NuGet.Config"
@@ -4234,7 +4234,6 @@
         "net9.0"
       ],
       "sources": {
-        "/usr/lib/dotnet/library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -4253,7 +4252,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.100"
+      "SdkAnalysisLevel": "9.0.300"
     },
     "frameworks": {
       "net9.0": {
@@ -4297,7 +4296,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/9.0.110/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/home/shirokitsu/.dotnet/sdk/9.0.308/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
