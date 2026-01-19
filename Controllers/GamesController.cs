@@ -148,22 +148,43 @@ namespace mist.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create(Game game, int[] selectedTagIds, IFormFile? imageFile, IFormFile? downloadFile)
+        public async Task<IActionResult> Create(int[] selectedTagIds, IFormFile? imageFile, IFormFile? downloadFile)
         {
-            ModelState.Remove("CreatedAt");
-            ModelState.Remove("Owners");
-            ModelState.Remove("Purchases");
-            ModelState.Remove("Promotions");
-            ModelState.Remove("GameTags");
-            ModelState.Remove("Tags");
-            ModelState.Remove("ImageUrl");
-            ModelState.Remove("DownloadUrl");
-            ModelState.Remove("WishlistItems");
-            ModelState.Remove("Reviews");
+            // Ręczne pobieranie wartości z formularza bez model bindingu
+            var title = Request.Form["Title"].ToString();
+            var description = Request.Form["Description"].ToString();
+            var developer = Request.Form["Developer"].ToString();
+            var publisher = Request.Form["Publisher"].ToString();
+            var isActiveStr = Request.Form["IsActive"].ToString();
+            
+            if (!decimal.TryParse(Request.Form["Price"], out var price))
+            {
+                ModelState.AddModelError("Price", "Nieprawidłowa cena");
+            }
+            
+            if (!DateTime.TryParse(Request.Form["ReleaseDate"], out var releaseDate))
+            {
+                ModelState.AddModelError("ReleaseDate", "Nieprawidłowa data wydania");
+            }
+            
+            var isActive = isActiveStr.Contains("true");
+            
+            // Walidacja
+            if (string.IsNullOrWhiteSpace(title))
+                ModelState.AddModelError("Title", "Tytuł gry jest wymagany");
+            if (string.IsNullOrWhiteSpace(description))
+                ModelState.AddModelError("Description", "Opis gry jest wymagany");
+            if (string.IsNullOrWhiteSpace(developer))
+                ModelState.AddModelError("Developer", "Developer jest wymagany");
+            if (string.IsNullOrWhiteSpace(publisher))
+                ModelState.AddModelError("Publisher", "Wydawca jest wymagany");
+            if (price <= 0)
+                ModelState.AddModelError("Price", "Cena musi być większa niż 0");
             
             if (ModelState.IsValid)
             {
-                game.CreatedAt = DateTime.UtcNow;
+                string? imageUrl = null;
+                string? downloadUrl = null;
                 
                 // Upload image file
                 if (imageFile != null && imageFile.Length > 0)
@@ -171,13 +192,13 @@ namespace mist.Controllers
                     var imageResult = await _fileUploadService.UploadGameImageAsync(imageFile);
                     if (imageResult.Success)
                     {
-                        game.ImageUrl = imageResult.FilePath;
+                        imageUrl = imageResult.FilePath;
                     }
                     else
                     {
                         ModelState.AddModelError("", imageResult.Message);
                         ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
-                        return View(game);
+                        return View(new Game { Title = title, Description = description, Price = price, Developer = developer, Publisher = publisher, ReleaseDate = releaseDate, IsActive = isActive });
                     }
                 }
                 
@@ -187,25 +208,50 @@ namespace mist.Controllers
                     var downloadResult = await _fileUploadService.UploadGameFileAsync(downloadFile);
                     if (downloadResult.Success)
                     {
-                        game.DownloadUrl = downloadResult.FilePath;
+                        downloadUrl = downloadResult.FilePath;
                     }
                     else
                     {
                         ModelState.AddModelError("", downloadResult.Message);
                         ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
-                        return View(game);
+                        return View(new Game { Title = title, Description = description, Price = price, Developer = developer, Publisher = publisher, ReleaseDate = releaseDate, IsActive = isActive });
                     }
                 }
                 
-                _context.Add(game);
-                await _context.SaveChangesAsync();
+                // Wstaw grę używając surowego SQL, aby uniknąć problemów z EF Core
+                var sql = @"
+                    INSERT INTO Games (Title, Description, Price, Developer, Publisher, ReleaseDate, IsActive, CreatedAt, ImageUrl, DownloadUrl)
+                    VALUES (@title, @description, @price, @developer, @publisher, @releaseDate, @isActive, @createdAt, @imageUrl, @downloadUrl);
+                    SELECT last_insert_rowid();";
+                
+                var parameters = new[]
+                {
+                    new Microsoft.Data.Sqlite.SqliteParameter("@title", title),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@description", description),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@price", price),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@developer", developer),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@publisher", publisher),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@releaseDate", releaseDate),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@isActive", isActive),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@createdAt", DateTime.UtcNow),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@imageUrl", (object?)imageUrl ?? DBNull.Value),
+                    new Microsoft.Data.Sqlite.SqliteParameter("@downloadUrl", (object?)downloadUrl ?? DBNull.Value)
+                };
+                
+                using var command = _context.Database.GetDbConnection().CreateCommand();
+                command.CommandText = sql;
+                command.Parameters.AddRange(parameters);
+                
+                await _context.Database.OpenConnectionAsync();
+                var result = await command.ExecuteScalarAsync();
+                var gameId = Convert.ToInt32(result);
 
                 // Dodaj wybrane tagi
                 if (selectedTagIds != null && selectedTagIds.Length > 0)
                 {
                     foreach (var tagId in selectedTagIds)
                     {
-                        _context.GameTags.Add(new GameTag { GameId = game.Id, TagId = tagId });
+                        _context.GameTags.Add(new GameTag { GameId = gameId, TagId = tagId });
                     }
                     await _context.SaveChangesAsync();
                 }
@@ -215,7 +261,7 @@ namespace mist.Controllers
             }
             
             ViewBag.AllTags = await _context.Tags.OrderBy(t => t.Name).ToListAsync();
-            return View(game);
+            return View(new Game { Title = title, Description = description, Price = price, Developer = developer, Publisher = publisher, ReleaseDate = releaseDate, IsActive = isActive });
         }
 
         // GET: Games/Edit/5
