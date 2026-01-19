@@ -8,20 +8,25 @@ namespace mist.Models
 
         [Required(ErrorMessage = "Tytuł gry jest wymagany")]
         [StringLength(100)]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Opis gry jest wymagany")]
         [StringLength(2000)]
-        public string Description { get; set; }
+        public string Description { get; set; } = string.Empty;
 
         [Required]
         [Range(0.01, 999.99, ErrorMessage = "Cena musi być między 0.01 a 999.99")]
         public decimal Price { get; set; }
 
-        public string ImageUrl { get; set; }
+        public string? ImageUrl { get; set; }
         public string? DownloadUrl { get; set; }
-        public string Developer { get; set; }
-        public string Publisher { get; set; }
+        
+        [Required(ErrorMessage = "Developer jest wymagany")]
+        public string Developer { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Wydawca jest wymagany")]
+        public string Publisher { get; set; } = string.Empty;
+        
         public DateTime ReleaseDate { get; set; }
         public bool IsActive { get; set; } = true;
         
